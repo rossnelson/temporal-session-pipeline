@@ -1,4 +1,4 @@
-module pipeline
+module dio
 
 go 1.25
 
