@@ -10,8 +10,8 @@ import (
 
 	"go.temporal.io/sdk/client"
 
-	"github.com/example/temporal-session-pipeline/internal/pipeline"
-	temporalClient "github.com/example/temporal-session-pipeline/internal/temporal"
+	"pipeline/internal/pipeline"
+	temporalClient "pipeline/internal/temporal"
 )
 
 func main() {

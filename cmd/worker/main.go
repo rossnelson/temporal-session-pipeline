@@ -7,7 +7,7 @@ import (
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
 
-	"github.com/example/temporal-session-pipeline/internal/pipeline"
+	"pipeline/internal/pipeline"
 )
 
 func main() {

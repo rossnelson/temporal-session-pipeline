@@ -1,4 +1,4 @@
-module github.com/example/temporal-session-pipeline
+module pipeline
 
 go 1.25
 
