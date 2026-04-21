@@ -13,3 +13,8 @@
 # Local env files
 .env
 .env.local
+
+# Tooling state
+.omc/
+.claude/
+.serena/
