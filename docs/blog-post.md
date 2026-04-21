@@ -10,7 +10,9 @@ Then I picked up a Zoom H1 Essential (a cheap handheld field recorder) and start
 
 So I wired up a pipeline: drop the `.wav` files from the H1 onto a server, wait a few hours, get a pull request on the campaign site with a session recap, a strategy guide, a set of highlight pages with embedded audio clips, and a 90-second highlight reel. No manual steps for the happy path.
 
-It's a fun toy, but what made it possible to ship in a weekend, and what has kept it running reliably across GPU OOMs, model-download timeouts, and at least one cosmic-ray-grade ffmpeg bug, is that the whole thing is a single Temporal workflow. This post walks through the pipeline as a practical showcase of the Temporal features that earned their keep.
+It's a fun toy, but what made it possible to ship in a weekend, and what has kept it running reliably across GPU OOMs, model-download timeouts, and at least one cosmic-ray-grade ffmpeg bug, is that the whole thing is a single Temporal workflow.
+
+Below I'll walk through six Temporal primitives that did the heavy lifting: long `StartToCloseTimeout` paired with short `HeartbeatTimeout`, retry policies tuned per activity class, signals for human-in-the-loop, `workflow.Go` and `workflow.Await` for parallel activities, `SideEffect` for deterministic env reads, and the Claude Code CLI wrapped as an activity. The D&D framing is incidental; the patterns port cleanly to anything long-running and heterogeneous.
 
 The sanitized reference implementation lives at [github.com/rossnelson/temporal-session-pipeline](https://github.com/rossnelson/temporal-session-pipeline). You're reading its copy of the post right now. The original project is written in Go using the Temporal Go SDK; the same patterns translate directly to TypeScript and Python.
 
@@ -65,7 +67,7 @@ longOpts := workflow.ActivityOptions{
 }
 ```
 
-`StartToCloseTimeout` gives the activity room to finish. `HeartbeatTimeout` is the interesting one: if the activity stops heartbeating for more than 2 minutes, Temporal gives up on this attempt and schedules a retry, even though the overall timeout is hours away. That's the behavior you want. A stuck Python subprocess should be caught in minutes, not hours.
+The mental model: `StartToCloseTimeout` is the budget for the whole activity. `HeartbeatTimeout` is how long the worker is allowed to go silent before Temporal gives up on the current attempt and schedules a retry, even though the overall timeout is still hours away. That's the behavior you want. A stuck Python subprocess should be caught in minutes, not hours.
 
 The activity itself reads JSON progress events from the child process and heartbeats on each one:
 
@@ -118,7 +120,7 @@ if proposeResult.Confidence < AutoAcceptThreshold {
 }
 ```
 
-`signalChan.Receive` blocks the workflow (not a goroutine, the *workflow*) until a signal arrives. In the meantime the worker pod can be restarted, the cluster can be upgraded, the laptop that started the workflow can be closed. When the operator finally responds (hours or days later), a CLI command (or any external sender; in the author's personal setup, a Slack bot) sends the signal and the workflow picks up exactly where it left off.
+The mental model: a workflow waiting on a signal isn't code running somewhere. It's a durable checkpoint in the Temporal cluster. `signalChan.Receive` blocks the workflow (not a goroutine, the *workflow*) until a signal arrives. In the meantime the worker pod can be restarted, the cluster can be upgraded, the laptop that started the workflow can be closed. When the operator finally responds (hours or days later), a CLI command (or any external sender; in the author's personal setup, a Slack bot) sends the signal and the workflow picks up exactly where it left off.
 
 The CLI has a command for the same thing:
 
@@ -155,7 +157,7 @@ workflow.Go(ctx, func(gCtx workflow.Context) {
 _ = workflow.Await(ctx, func() bool { return recapDone && highlightDone })
 ```
 
-`workflow.Go` is not a Go goroutine. It's a deterministic coroutine managed by Temporal. `workflow.Await` blocks until the predicate is true. If the worker crashes halfway through, the replay reconstructs exactly this state: both activities in flight, the await still pending.
+The mental model: `workflow.Go` is not a Go goroutine. It's a deterministic coroutine that Temporal records so replays reconstruct the same interleaving. `workflow.Await` blocks until the predicate is true. If the worker crashes halfway through, the replay reconstructs exactly this state: both activities in flight, the await still pending.
 
 Writing this with raw goroutines and channels would work for the happy path and fall apart the first time the worker got rescheduled. The Temporal equivalent is almost the same shape, and it's durable.
 
@@ -215,6 +217,17 @@ The real value of Temporal on a project like this shows up in the failure modes:
 
 I spent zero time writing the code that handles any of those. It's all inherent to the programming model.
 
+## When to reach for this pattern
+
+Durable workflows aren't free. There's a learning curve, and small tasks don't need the machinery. The shape of problem that's worth wrapping in Temporal looks like:
+
+- **Multi-step, with heterogeneous step types.** If the "pipeline" is one HTTP call, you don't need this. If it's a child-process invocation, then an LLM call, then a git push, with retry semantics that differ per step, yes.
+- **Long-running on unreliable infrastructure.** Cheap hardware, preemptible VMs, laptops. Anything where "the worker might go away mid-run" is a realistic failure mode.
+- **Needs a human in the loop somewhere.** If any step might ask a person to confirm, correct, or fill in a blank, signals turn "write a queue system" into three lines of code.
+- **Idempotent at the step level but not at the whole-job level.** You want to retry a single activity without replaying successful earlier ones. Workflow history does that for free.
+
+If your problem hits three of those four, the effort to learn Temporal pays back inside your first production outage.
+
 ## What's next
 
 A few directions that would push this further:
@@ -226,3 +239,5 @@ A few directions that would push this further:
 The full source is in this repo, [github.com/rossnelson/temporal-session-pipeline](https://github.com/rossnelson/temporal-session-pipeline). It's about 2,000 lines of Go, most of which is activity glue; the workflow itself is about 250 lines. It's a good lens for seeing which Temporal features earn their keep on a real, messy, long-running problem.
 
 And if you have your own "I do this by hand every two weeks" chore, it's worth asking whether it's really a pipeline in disguise. Most of mine were.
+
+If you want to go deeper, the [Temporal docs](https://docs.temporal.io) cover the primitives above with more care, and the [community Slack](https://temporal.io/slack) is where I've asked every not-in-the-docs question I've had. If this pattern fits a chore of your own, I'd love to hear what you end up building.
