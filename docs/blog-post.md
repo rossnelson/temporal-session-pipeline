@@ -12,7 +12,7 @@ So I wired up a pipeline: drop the `.wav` files from the H1 onto a server, wait 
 
 It's a fun toy, but what made it possible to ship in a weekend — and what has kept it running reliably across GPU OOMs, model-download timeouts, and at least one cosmic-ray-grade ffmpeg bug — is that the whole thing is a single Temporal workflow. This post walks through the pipeline as a practical showcase of the Temporal features that earned their keep.
 
-The sanitized reference implementation lives at `github.com/example/temporal-session-pipeline`. The original project is written in Go using the Temporal Go SDK; the same patterns translate directly to TypeScript and Python.
+The sanitized reference implementation lives at [github.com/rossnelson/temporal-session-pipeline](https://github.com/rossnelson/temporal-session-pipeline) — you're reading its copy of the post right now. The original project is written in Go using the Temporal Go SDK; the same patterns translate directly to TypeScript and Python.
 
 ## One box in my closet
 
@@ -223,6 +223,6 @@ A few directions that would push this further:
 - **A schedule** that auto-processes any new recording that lands in the drop directory, using Temporal schedules.
 - **Versioning** the workflow itself with `workflow.GetVersion` so I can change the pipeline shape without breaking in-flight workflows.
 
-If you want the full source, the sanitized repo is here: `github.com/example/temporal-session-pipeline`. The pipeline is ~2,000 lines of Go, most of which is activity glue; the workflow itself is about 250 lines. It's a good lens for seeing which Temporal features earn their keep on a real, messy, long-running problem.
+The full source is in this repo, [github.com/rossnelson/temporal-session-pipeline](https://github.com/rossnelson/temporal-session-pipeline) — about 2,000 lines of Go, most of which is activity glue; the workflow itself is about 250 lines. It's a good lens for seeing which Temporal features earn their keep on a real, messy, long-running problem.
 
 And if you have your own "I do this by hand every two weeks" chore, it's worth asking whether it's really a pipeline in disguise. Most of mine were.
