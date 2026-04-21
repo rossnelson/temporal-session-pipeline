@@ -27,7 +27,7 @@ That hardware constraint is the interesting part of the design, not a footnote t
 - **Long timeouts as a first-class design choice.** `StartToCloseTimeout: 6 * time.Hour` isn't a safety margin: it's the budget. I'd rather wait four hours and succeed than try to go fast and fail.
 - **Heartbeats over throughput.** Because activities run long, progress visibility matters more than raw speed. Heartbeats are cheap; a silent 90-minute activity is not.
 
-What I wouldn't have predicted before building this is how much Temporal flatters the cheap-hardware approach. Durable execution means a stuck activity, a pod OOM, or a late-night power flicker costs me nothing. The workflow picks up where it left off. Without that, running anything this long on consumer-grade hardware would mean babysitting it.
+I've run workloads like this on Raspberry Pis and Mac minis for years, so cheap hardware isn't new ground. What Temporal adds that those setups didn't is that recovery from the inevitable failures is free. A stuck activity, a pod OOM, a late-night power flicker: the workflow picks up where it left off without any code I had to write. On the Pi I'd have hand-rolled a resume-from-last-checkpoint script and tested it poorly. Here I didn't have to.
 
 ## The pipeline
 
