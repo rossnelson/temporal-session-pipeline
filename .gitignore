@@ -1,0 +1,15 @@
+# Go binaries
+/sessionctl
+/worker
+*.test
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Local env files
+.env
+.env.local
