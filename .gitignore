@@ -1,5 +1,5 @@
 # Go binaries
-/sessionctl
+/dio
 /worker
 *.test
 

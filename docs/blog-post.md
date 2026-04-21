@@ -1,18 +1,18 @@
 ---
 title: "From 5 hours of D&D audio to a pull request: a durable pipeline with Temporal and Claude"
-description: "A weekend side-project turned into a practical tour of durable execution, signals, heartbeats, and parallel activities — using Temporal to turn raw session recordings into recaps, highlight reels, and PRs."
+description: "A weekend side-project turned into a practical tour of durable execution, signals, heartbeats, and parallel activities, using Temporal to turn raw session recordings into recaps, highlight reels, and PRs."
 tags: [How-To, Temporal Concepts, AI]
 ---
 
 Every other Friday, six of us play Dungeons & Dragons. For about a year I tried to write session recaps from memory. They were bad and they were late.
 
-Then I picked up a Zoom H1 Essential — a cheap handheld field recorder — and started leaving it running on the table for the whole session. Suddenly I had five hours of raw audio every two weeks: overlapping voices, combat, tangents about snacks, the occasional toddler. Having the recording didn't solve the problem; it just moved it. Now instead of "write recaps from memory" I had "find time to listen back to five hours of audio and take notes." That was never going to happen.
+Then I picked up a Zoom H1 Essential (a cheap handheld field recorder) and started leaving it running on the table for the whole session. Suddenly I had five hours of raw audio every two weeks: overlapping voices, combat, tangents about snacks, the occasional toddler. Having the recording didn't solve the problem; it just moved it. Now instead of "write recaps from memory" I had "find time to listen back to five hours of audio and take notes." That was never going to happen.
 
 So I wired up a pipeline: drop the `.wav` files from the H1 onto a server, wait a few hours, get a pull request on the campaign site with a session recap, a strategy guide, a set of highlight pages with embedded audio clips, and a 90-second highlight reel. No manual steps for the happy path.
 
-It's a fun toy, but what made it possible to ship in a weekend — and what has kept it running reliably across GPU OOMs, model-download timeouts, and at least one cosmic-ray-grade ffmpeg bug — is that the whole thing is a single Temporal workflow. This post walks through the pipeline as a practical showcase of the Temporal features that earned their keep.
+It's a fun toy, but what made it possible to ship in a weekend, and what has kept it running reliably across GPU OOMs, model-download timeouts, and at least one cosmic-ray-grade ffmpeg bug, is that the whole thing is a single Temporal workflow. This post walks through the pipeline as a practical showcase of the Temporal features that earned their keep.
 
-The sanitized reference implementation lives at [github.com/rossnelson/temporal-session-pipeline](https://github.com/rossnelson/temporal-session-pipeline) — you're reading its copy of the post right now. The original project is written in Go using the Temporal Go SDK; the same patterns translate directly to TypeScript and Python.
+The sanitized reference implementation lives at [github.com/rossnelson/temporal-session-pipeline](https://github.com/rossnelson/temporal-session-pipeline). You're reading its copy of the post right now. The original project is written in Go using the Temporal Go SDK; the same patterns translate directly to TypeScript and Python.
 
 ## One box in my closet
 
@@ -22,10 +22,10 @@ That hardware constraint is the interesting part of the design, not a footnote t
 
 - **Small Whisper model.** I use `whisper-small` with `int8` quantization rather than `large-v3`. Word accuracy drops a few points; runtime drops by an order of magnitude. Good enough for session recaps, and it fits in RAM without swapping.
 - **Sequential transcription.** Running pyannote diarization and Whisper decoding for two chunks at once will OOM the worker. One chunk at a time is slower but always finishes.
-- **Long timeouts as a first-class design choice.** `StartToCloseTimeout: 6 * time.Hour` isn't a safety margin — it's the budget. I'd rather wait four hours and succeed than try to go fast and fail.
+- **Long timeouts as a first-class design choice.** `StartToCloseTimeout: 6 * time.Hour` isn't a safety margin: it's the budget. I'd rather wait four hours and succeed than try to go fast and fail.
 - **Heartbeats over throughput.** Because activities run long, progress visibility matters more than raw speed. Heartbeats are cheap; a silent 90-minute activity is not.
 
-What I wouldn't have predicted before building this is how much Temporal flatters the cheap-hardware approach. Durable execution means a stuck activity, a pod OOM, or a late-night power flicker costs me nothing — the workflow picks up where it left off. Without that, running anything this long on consumer-grade hardware would mean babysitting it.
+What I wouldn't have predicted before building this is how much Temporal flatters the cheap-hardware approach. Durable execution means a stuck activity, a pod OOM, or a late-night power flicker costs me nothing. The workflow picks up where it left off. Without that, running anything this long on consumer-grade hardware would mean babysitting it.
 
 ## The pipeline
 
@@ -46,7 +46,7 @@ Here's the shape of the workflow, start to finish:
 From the operator's perspective, steps 1 through 11 look like a single command:
 
 ```bash
-./sessionctl process /data/recordings/session.wav --date 2026-04-17
+./dio process /data/recordings/session.wav --date 2026-04-17
 ```
 
 Under the hood that's one call to `client.ExecuteWorkflow`. Let's look at the parts that are actually interesting.
@@ -65,7 +65,7 @@ longOpts := workflow.ActivityOptions{
 }
 ```
 
-`StartToCloseTimeout` gives the activity room to finish. `HeartbeatTimeout` is the interesting one: if the activity stops heartbeating for more than 2 minutes, Temporal gives up on this attempt and schedules a retry — even though the overall timeout is hours away. That's the behavior you want. A stuck Python subprocess should be caught in minutes, not hours.
+`StartToCloseTimeout` gives the activity room to finish. `HeartbeatTimeout` is the interesting one: if the activity stops heartbeating for more than 2 minutes, Temporal gives up on this attempt and schedules a retry, even though the overall timeout is hours away. That's the behavior you want. A stuck Python subprocess should be caught in minutes, not hours.
 
 The activity itself reads JSON progress events from the child process and heartbeats on each one:
 
@@ -102,7 +102,7 @@ clipOpts := workflow.ActivityOptions{
 }
 ```
 
-Different steps, different policies — and they live right next to the code that uses them, not in a central config file.
+Different steps, different policies, and they live right next to the code that uses them, not in a central config file.
 
 ## Humans in the loop via signals
 
@@ -118,12 +118,12 @@ if proposeResult.Confidence < AutoAcceptThreshold {
 }
 ```
 
-`signalChan.Receive` blocks the workflow — not a goroutine, the *workflow* — until a signal arrives. In the meantime the worker pod can be restarted, the cluster can be upgraded, the laptop that started the workflow can be closed. When the operator finally responds — hours or days later — a CLI command (or any external sender; in the author's personal setup, a Slack bot) sends the signal and the workflow picks up exactly where it left off.
+`signalChan.Receive` blocks the workflow (not a goroutine, the *workflow*) until a signal arrives. In the meantime the worker pod can be restarted, the cluster can be upgraded, the laptop that started the workflow can be closed. When the operator finally responds (hours or days later), a CLI command (or any external sender; in the author's personal setup, a Slack bot) sends the signal and the workflow picks up exactly where it left off.
 
 The CLI has a command for the same thing:
 
 ```bash
-./sessionctl confirm-speakers session-<id> --mappings '[
+./dio confirm-speakers session-<id> --mappings '[
   {"speaker_label":"SPEAKER_00","player_name":"Aelara","character":"Aelara Silverleaf","confidence":1.0}
 ]'
 ```
@@ -155,13 +155,13 @@ workflow.Go(ctx, func(gCtx workflow.Context) {
 _ = workflow.Await(ctx, func() bool { return recapDone && highlightDone })
 ```
 
-`workflow.Go` is not a Go goroutine — it's a deterministic coroutine managed by Temporal. `workflow.Await` blocks until the predicate is true. If the worker crashes halfway through, the replay reconstructs exactly this state: both activities in flight, the await still pending.
+`workflow.Go` is not a Go goroutine. It's a deterministic coroutine managed by Temporal. `workflow.Await` blocks until the predicate is true. If the worker crashes halfway through, the replay reconstructs exactly this state: both activities in flight, the await still pending.
 
 Writing this with raw goroutines and channels would work for the happy path and fall apart the first time the worker got rescheduled. The Temporal equivalent is almost the same shape, and it's durable.
 
 ## Determinism and `SideEffect`
 
-Workflows must be deterministic. Reading an environment variable inside a workflow is non-deterministic — the value might differ between the original run and a replay. Temporal catches this and crashes the workflow task.
+Workflows must be deterministic. Reading an environment variable inside a workflow is non-deterministic. The value might differ between the original run and a replay. Temporal catches this and crashes the workflow task.
 
 `SideEffect` is the escape hatch. It captures the result of a non-deterministic operation into workflow history, so replays get the original value:
 
@@ -199,7 +199,7 @@ for scanner.Scan() {
 }
 ```
 
-This is the same integration pattern as the Python transcription activity — wrap a long-running child process, forward its progress into Temporal's heartbeat stream, let retries handle failures. The workflow doesn't know or care that this activity is talking to an LLM; from its perspective it's just another activity with a 90-minute timeout.
+This is the same integration pattern as the Python transcription activity: wrap a long-running child process, forward its progress into Temporal's heartbeat stream, let retries handle failures. The workflow doesn't know or care that this activity is talking to an LLM; from its perspective it's just another activity with a 90-minute timeout.
 
 That's the ergonomic win of this stack: LLM calls, ffmpeg invocations, and git operations all fit the same activity abstraction. You don't need different plumbing for each.
 
@@ -223,6 +223,6 @@ A few directions that would push this further:
 - **A schedule** that auto-processes any new recording that lands in the drop directory, using Temporal schedules.
 - **Versioning** the workflow itself with `workflow.GetVersion` so I can change the pipeline shape without breaking in-flight workflows.
 
-The full source is in this repo, [github.com/rossnelson/temporal-session-pipeline](https://github.com/rossnelson/temporal-session-pipeline) — about 2,000 lines of Go, most of which is activity glue; the workflow itself is about 250 lines. It's a good lens for seeing which Temporal features earn their keep on a real, messy, long-running problem.
+The full source is in this repo, [github.com/rossnelson/temporal-session-pipeline](https://github.com/rossnelson/temporal-session-pipeline). It's about 2,000 lines of Go, most of which is activity glue; the workflow itself is about 250 lines. It's a good lens for seeing which Temporal features earn their keep on a real, messy, long-running problem.
 
 And if you have your own "I do this by hand every two weeks" chore, it's worth asking whether it's really a pipeline in disguise. Most of mine were.

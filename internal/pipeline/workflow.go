@@ -51,7 +51,7 @@ func SessionProcessingWorkflow(ctx workflow.Context, input SessionProcessingInpu
 
 		if sessionDate == "" {
 			logger.Info("No session date found in metadata, waiting for SetSessionDate signal",
-				"hint", "Send signal with: sessionctl set-date <workflow-id> <YYYY-MM-DD>",
+				"hint", "Send signal with: dio set-date <workflow-id> <YYYY-MM-DD>",
 			)
 			signalChan := workflow.GetSignalChannel(ctx, "SetSessionDate")
 			signalChan.Receive(ctx, &sessionDate)

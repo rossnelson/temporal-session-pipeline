@@ -25,7 +25,7 @@ func main() {
 	switch cmd {
 	case "process":
 		if len(os.Args) < 3 {
-			fmt.Println("Usage: sessionctl process <recording-path> [<more-paths>...] [session-id] [--notes <path>] [--date YYYY-MM-DD]")
+			fmt.Println("Usage: dio process <recording-path> [<more-paths>...] [session-id] [--notes <path>] [--date YYYY-MM-DD]")
 			fmt.Println()
 			fmt.Println("Start a session processing workflow via Temporal.")
 			fmt.Println("Multiple recording paths are treated as consecutive audio files for one session.")
@@ -36,10 +36,10 @@ func main() {
 			fmt.Println()
 			fmt.Println("Examples:")
 			fmt.Println("  # Single file")
-			fmt.Println("  sessionctl process /data/recordings/session.wav --date 2026-04-17")
+			fmt.Println("  dio process /data/recordings/session.wav --date 2026-04-17")
 			fmt.Println()
 			fmt.Println("  # Multiple files from a device that split recording at the 4GB WAV limit")
-			fmt.Println("  sessionctl process /data/recordings/a.WAV /data/recordings/b.WAV /data/recordings/c.WAV --date 2026-04-17")
+			fmt.Println("  dio process /data/recordings/a.WAV /data/recordings/b.WAV /data/recordings/c.WAV --date 2026-04-17")
 			fmt.Println()
 			fmt.Println("Environment variables:")
 			fmt.Println("  TEMPORAL_HOST - Temporal frontend address (default: localhost:7233)")
@@ -48,7 +48,7 @@ func main() {
 		runProcess(os.Args[2:])
 	case "confirm-speakers":
 		if len(os.Args) < 3 {
-			fmt.Println("Usage: sessionctl confirm-speakers <workflow-id> [--mappings <json>]")
+			fmt.Println("Usage: dio confirm-speakers <workflow-id> [--mappings <json>]")
 			fmt.Println()
 			fmt.Println("Send speaker confirmation signal to a running workflow.")
 			os.Exit(1)
@@ -56,7 +56,7 @@ func main() {
 		runConfirmSpeakers(os.Args[2:])
 	case "set-date":
 		if len(os.Args) < 4 {
-			fmt.Println("Usage: sessionctl set-date <workflow-id> <YYYY-MM-DD>")
+			fmt.Println("Usage: dio set-date <workflow-id> <YYYY-MM-DD>")
 			fmt.Println()
 			fmt.Println("Send session date signal to a running workflow.")
 			os.Exit(1)
@@ -178,7 +178,7 @@ func runProcess(args []string) {
 	fmt.Printf("  Run ID:      %s\n", we.GetRunID())
 	fmt.Printf("  Session:     %s\n", sessionID)
 	fmt.Printf("\nMonitor at: Temporal UI or run:\n")
-	fmt.Printf("  sessionctl confirm-speakers %s\n", we.GetID())
+	fmt.Printf("  dio confirm-speakers %s\n", we.GetID())
 }
 
 func runConfirmSpeakers(args []string) {

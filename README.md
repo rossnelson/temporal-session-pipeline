@@ -28,7 +28,7 @@ recording.wav
 
 ## Binaries
 
-- `sessionctl` — CLI for starting workflows and sending signals
+- `dio` — CLI for starting workflows and sending signals
   (`process`, `confirm-speakers`, `set-date`).
 - `worker` — Temporal worker that hosts the workflow and all activities.
 
@@ -38,11 +38,11 @@ recording.wav
    [Temporal CLI](https://docs.temporal.io/cli) — `temporal server start-dev`.
 2. Build the binaries:
    ```
-   go build -o sessionctl ./cmd/sessionctl
+   go build -o dio ./cmd/dio
    go build -o worker ./cmd/worker
    ```
 3. In one shell: `./worker`
-4. In another shell: `./sessionctl process /path/to/recording.wav --date 2026-04-17`
+4. In another shell: `./dio process /path/to/recording.wav --date 2026-04-17`
 
 ## Python dependencies
 
