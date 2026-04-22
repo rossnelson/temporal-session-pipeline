@@ -207,7 +207,7 @@ _ = workflow.SideEffect(ctx, func(ctx workflow.Context) interface{} {
 }).Get(&ghOwner)
 ```
 
-I reach for this two or three places per workflow: reading config, generating a random workspace ID, checking the current time when a precise clock isn't needed. Once you internalize the rule ("anything that might change between runs goes through SideEffect or an activity"), determinism stops being a trap and starts being a useful discipline.
+I reach for this two or three places: reading config, generating a random workspace ID, checking the current time when a precise clock isn't needed. Once you internalize the rule ("anything that might change between runs goes through SideEffect or an activity"), determinism stops being a trap and starts being a useful discipline.
 
 ## Claude Code as an activity
 
@@ -234,9 +234,15 @@ for scanner.Scan() {
 }
 ```
 
-This is the same integration pattern as the Python transcription activity: wrap a long-running child process, forward its progress into Temporal's heartbeat stream, let retries handle failures. The workflow doesn't know or care that this activity is talking to an LLM; from its perspective it's just another activity with a 90-minute timeout.
+This is the same integration pattern as the Python transcription activity: wrap
+a long-running child process, forward its progress into Temporal's heartbeat
+stream, let retries handle failures. The workflow doesn't know or care that this
+activity is talking to an LLM; from its perspective it's just another activity
+with a 90-minute timeout.
 
-That's the ergonomic win of this stack: LLM calls, ffmpeg invocations, and git operations all fit the same activity abstraction. You don't need different plumbing for each.
+That's the ergonomic win of this stack: LLM calls, ffmpeg invocations, and git
+operations all fit the same activity abstraction. You don't need different
+plumbing for each.
 
 ## What happens when things go wrong
 
