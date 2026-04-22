@@ -10,7 +10,7 @@ Then I picked up a [Zoom H1 Essential](https://zoomcorp.com/en/us/handheld-recor
 and started leaving it running on the table for the whole session. Suddenly I
 had 3-5 hours of raw audio: overlapping voices, combat,
 tangents about snacks, a very vocal toddler. Having the recording didn't solve
-the problem; it just moved it. With auio in hand I knew I could automate the
+the problem; it just moved it. With audio in hand I knew I could automate the
 process.
 
 So I wired up a pipeline: drop the `.wav` files from the H1 onto a server, wait
@@ -39,7 +39,7 @@ TypeScript and Python.
 
 ## One box in my closet
 
-I currnetly have whole pipeline running on a single Dell tower tucked in a closet:
+I currently have the whole pipeline running on a single Dell tower tucked in a closet:
 
 a mid-range CPU, 32 GiB RAM, no GPU, one SSD, running a k3s single-node cluster.
 The recap and highlight activities shell out to the Claude Code CLI against my
@@ -55,10 +55,10 @@ see how much it can do":
 - **Long timeouts as a first-class design choice.** `StartToCloseTimeout: 6 * time.Hour` isn't a safety margin: it's the budget. I'd rather wait four hours and succeed than try to go fast and fail.
 - **Heartbeats over throughput.** Because activities run long, progress visibility matters more than raw speed. Heartbeats are cheap; a silent 90-minute activity is not.
 
-I've run in roughly every concevable environment over the last 20 years. What
+I've run in roughly every conceivable environment over the last 20 years. What
 Temporal adds that those setups didn't is that recovery from the inevitable
 failures is free. A stuck activity, a pod OOM, a late-night power flicker: the
-workflow picks up where it left off and I didnt have to write that glue logic.
+workflow picks up where it left off and I didn't have to write that glue logic.
 On the others I'd have hand-rolled a resume-from-last-checkpoint script and tested
 it poorly. Here I didn't have to.
 
