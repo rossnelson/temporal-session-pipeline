@@ -4,30 +4,63 @@ description: "A weekend side-project turned into a practical tour of durable exe
 tags: [How-To, Temporal Concepts, AI]
 ---
 
-Every other Friday, six of us play Dungeons & Dragons. For about a year I tried to write session recaps from memory. They were bad and they were late.
+Once a month, seven of us play Dungeons & Dragons. For about 8 months I tried to write session recaps from memory. They were slow and laborious.
 
-Then I picked up a Zoom H1 Essential (a cheap handheld field recorder) and started leaving it running on the table for the whole session. Suddenly I had five hours of raw audio every two weeks: overlapping voices, combat, tangents about snacks, the occasional toddler. Having the recording didn't solve the problem; it just moved it. Now instead of "write recaps from memory" I had "find time to listen back to five hours of audio and take notes." That was never going to happen.
+Then I picked up a [Zoom H1 Essential](https://zoomcorp.com/en/us/handheld-recorders/handheld-recorders/h1essential/)
+and started leaving it running on the table for the whole session. Suddenly I
+had 3-5 hours of raw audio: overlapping voices, combat,
+tangents about snacks, a very vocal toddler. Having the recording didn't solve
+the problem; it just moved it. With auio in hand I knew I could automate the
+process.
 
-So I wired up a pipeline: drop the `.wav` files from the H1 onto a server, wait a few hours, get a pull request on the campaign site with a session recap, a strategy guide, a set of highlight pages with embedded audio clips, and a 90-second highlight reel. No manual steps for the happy path.
+So I wired up a pipeline: drop the `.wav` files from the H1 onto a server, wait
+a few hours, get a pull request on the campaign site with a session recap, a
+strategy guide, a set of highlight pages with embedded audio clips, and a
+90-second highlight reel. No manual steps for the happy path.
 
-It's a fun toy, but what made it possible to ship in a weekend, and what has kept it running reliably across GPU OOMs, model-download timeouts, and at least one cosmic-ray-grade ffmpeg bug, is that the whole thing is a single Temporal workflow.
+It's a fun toy, but what made it possible to ship in a weekend, and what has
+kept it running reliably across GPU OOMs, model-download timeouts, and at least
+one cosmic-ray-grade ffmpeg bug, is that the whole thing is a single Temporal
+workflow.
 
-Below I'll walk through six Temporal primitives that did the heavy lifting: long `StartToCloseTimeout` paired with short `HeartbeatTimeout`, retry policies tuned per activity class, signals for human-in-the-loop, `workflow.Go` and `workflow.Await` for parallel activities, `SideEffect` for deterministic env reads, and the Claude Code CLI wrapped as an activity. The D&D framing is incidental; the patterns port cleanly to anything long-running and heterogeneous.
+Below I'll walk through six Temporal primitives that did the heavy lifting: long
+`StartToCloseTimeout` paired with short `HeartbeatTimeout`, retry policies tuned
+per activity class, signals for human-in-the-loop, `workflow.Go` and
+`workflow.Await` for parallel activities, `SideEffect` for deterministic env
+reads, and the Claude Code CLI wrapped as an activity. The D&D framing is
+incidental; the patterns port cleanly to anything long-running and
+heterogeneous.
 
-The sanitized reference implementation lives at [github.com/rossnelson/temporal-session-pipeline](https://github.com/rossnelson/temporal-session-pipeline). You're reading its copy of the post right now. The original project is written in Go using the Temporal Go SDK; the same patterns translate directly to TypeScript and Python.
+The sanitized reference implementation lives at
+[github.com/rossnelson/temporal-session-pipeline](https://github.com/rossnelson/temporal-session-pipeline).
+The original project is written
+in Go using the Temporal Go SDK; the same patterns translate directly to
+TypeScript and Python.
 
 ## One box in my closet
 
-The whole pipeline runs on a single Dell tower tucked in a closet: a mid-range CPU, 32 GiB RAM, no GPU, one SSD, running a k3s single-node cluster. The recap and highlight activities shell out to the Claude Code CLI against my existing Claude subscription, so there's no metered cloud bill tied to pipeline runs.
+I currnetly have whole pipeline running on a single Dell tower tucked in a closet:
 
-That hardware constraint is the interesting part of the design, not a footnote to it. Nearly every choice in the pipeline falls out of "one small box, and I'd rather be slow than fragile":
+a mid-range CPU, 32 GiB RAM, no GPU, one SSD, running a k3s single-node cluster.
+The recap and highlight activities shell out to the Claude Code CLI against my
+existing Claude subscription, so there's no metered cloud bill tied to pipeline
+runs.
+
+That hardware constraint is the interesting part of the design, not a footnote
+to it. Nearly every choice in the pipeline falls out of "one small box, let's
+see how much it can do":
 
 - **Small Whisper model.** I use `whisper-small` with `int8` quantization rather than `large-v3`. Word accuracy drops a few points; runtime drops by an order of magnitude. Good enough for session recaps, and it fits in RAM without swapping.
 - **Sequential transcription.** Running pyannote diarization and Whisper decoding for two chunks at once will OOM the worker. One chunk at a time is slower but always finishes.
 - **Long timeouts as a first-class design choice.** `StartToCloseTimeout: 6 * time.Hour` isn't a safety margin: it's the budget. I'd rather wait four hours and succeed than try to go fast and fail.
 - **Heartbeats over throughput.** Because activities run long, progress visibility matters more than raw speed. Heartbeats are cheap; a silent 90-minute activity is not.
 
-I've run workloads like this on Raspberry Pis and Mac minis for years, so cheap hardware isn't new ground. What Temporal adds that those setups didn't is that recovery from the inevitable failures is free. A stuck activity, a pod OOM, a late-night power flicker: the workflow picks up where it left off without any code I had to write. On the Pi I'd have hand-rolled a resume-from-last-checkpoint script and tested it poorly. Here I didn't have to.
+I've run in roughly every concevable environment over the last 20 years. What
+Temporal adds that those setups didn't is that recovery from the inevitable
+failures is free. A stuck activity, a pod OOM, a late-night power flicker: the
+workflow picks up where it left off and I didnt have to write that glue logic.
+On the others I'd have hand-rolled a resume-from-last-checkpoint script and tested
+it poorly. Here I didn't have to.
 
 ## The pipeline
 
