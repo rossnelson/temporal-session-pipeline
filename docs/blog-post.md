@@ -4,23 +4,43 @@ description: "A weekend side-project turned into a practical tour of durable exe
 tags: [How-To, Temporal Concepts, AI]
 ---
 
-Once a month, seven of us play Dungeons & Dragons. For about 8 months I tried to write session recaps from memory. They were slow and laborious.
+Once a month, seven of us play Dungeons & Dragons. After a hand full of sessions
+i was nominated the official note taker. Not because I'm a great note taker but
+more that i showed a willingness to dig in an learn dnd. For those of
+you that have played DnD you know it can get fairly complex. and its not a
+simple game of "shoot the goblin". Due to all the moving parts and
+charater specs, the possibilities are endless and strategies can vary depending
+on your group. I had already started a static website that that i could share with the group between.
+sessions. It had session recaps and strategy guides for chracter optimizations
+and ideas for the next session. It was my way of helping a group full of new
+players, including myself, learn DnD as we played. And hopefully in a few years
+we can look back at our early sessions and see how far weve come..
 
-Then I picked up a [Zoom H1 Essential](https://zoomcorp.com/en/us/handheld-recorders/handheld-recorders/h1essential/)
-and started leaving it running on the table for the whole session. Suddenly I
+We started seeing a real importvment in our strategies as we used the site but i
+relaized there was a missed opportunity. If i recordered the sessions, i could
+use that audio to build recaps, highlight reels, and assist with note taking.
+I could use it to jog my memory on what happened in the session and we could
+look back at past session purley for nostalgic purposes..
+
+I picked up a [Zoom H1 Essential](https://zoomcorp.com/en/us/handheld-recorders/handheld-recorders/h1essential/)
+and left it running on the table for the whole session. Now I
 had 3-5 hours of raw audio: overlapping voices, combat,
-tangents about snacks, a very vocal toddler. Having the recording didn't solve
-the problem; it just moved it. With audio in hand I knew I could automate the
-process.
+tangents about snacks, a very vocal toddler. But it was never my intention to
+listen to the audio in its raw format. My dream was to create a tool that
+would trascribe the audio and massage it into a consumable format..
 
-So I wired up a pipeline: drop the `.wav` files from the H1 onto a server, wait
+I wanted to use AI to sample things in the session i might have missed or events i call out in my own notes.
+So i decided to build a pipeline that accepted a recording, transcribed it,
+and generated a PR against my dnd github repo with the recap, strategies, and highlights..
+
+So I wired it all up: drop the `.wav` files from the H1 onto a server, wait
 a few hours, get a pull request on the campaign site with a session recap, a
 strategy guide, a set of highlight pages with embedded audio clips, and a
 90-second highlight reel. No manual steps for the happy path.
 
-It's a fun toy, but what made it possible to ship in a weekend, and what has
+It's been a fun experiment, but what made it possible to ship in a weekend, and what has
 kept it running reliably across GPU OOMs, model-download timeouts, and at least
-one cosmic-ray-grade ffmpeg bug, is that the whole thing is a single Temporal
+one many many bug fixes, is that the whole thing is a single Temporal
 workflow.
 
 Below I'll walk through six Temporal primitives that did the heavy lifting: long
