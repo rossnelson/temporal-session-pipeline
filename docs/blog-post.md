@@ -4,34 +4,36 @@ description: "A weekend side-project turned into a practical tour of durable exe
 tags: [How-To, Temporal Concepts, AI]
 ---
 
-Once a month, seven of us play Dungeons & Dragons. After a hand full of sessions
-i was nominated the official note taker. Not because I'm a great note taker but
-more that i showed a willingness to dig in an learn dnd. For those of
-you that have played DnD you know it can get fairly complex. and its not a
-simple game of "shoot the goblin". Due to all the moving parts and
-charater specs, the possibilities are endless and strategies can vary depending
-on your group. I had already started a static website that that i could share with the group between.
-sessions. It had session recaps and strategy guides for chracter optimizations
-and ideas for the next session. It was my way of helping a group full of new
-players, including myself, learn DnD as we played. And hopefully in a few years
-we can look back at our early sessions and see how far weve come..
+Once a month, seven of us play Dungeons & Dragons. After a handful of sessions
+I was nominated the official note taker. Not because I'm a great note taker but
+more that I showed a willingness to dig in and learn D&D. For those of
+you that have played D&D, you know it can get fairly complex, and it's not a
+simple game of "shoot the goblin." Due to all the moving parts and
+character specs, the possibilities are endless and strategies can vary depending
+on your group. I had already started a static website that I could share with
+the group between sessions. It had session recaps and strategy guides for
+character optimizations and ideas for the next session. It was my way of
+helping a group full of new players, including myself, learn D&D as we played.
+And hopefully in a few years we can look back at our early sessions and see
+how far we've come.
 
-We started seeing a real importvment in our strategies as we used the site but i
-relaized there was a missed opportunity. If i recordered the sessions, i could
+We started seeing a real improvement in our strategies as we used the site, but
+I realized there was a missed opportunity. If I recorded the sessions, I could
 use that audio to build recaps, highlight reels, and assist with note taking.
-I could use it to jog my memory on what happened in the session and we could
-look back at past session purley for nostalgic purposes..
+I could use it to jog my memory on what happened in the session, and we could
+look back at past sessions purely for nostalgic purposes.
 
 I picked up a [Zoom H1 Essential](https://zoomcorp.com/en/us/handheld-recorders/handheld-recorders/h1essential/)
 and left it running on the table for the whole session. Now I
 had 3-5 hours of raw audio: overlapping voices, combat,
 tangents about snacks, a very vocal toddler. But it was never my intention to
 listen to the audio in its raw format. My dream was to create a tool that
-would trascribe the audio and massage it into a consumable format..
+would transcribe the audio and massage it into a consumable format.
 
-I wanted to use AI to sample things in the session i might have missed or events i call out in my own notes.
-So i decided to build a pipeline that accepted a recording, transcribed it,
-and generated a PR against my dnd github repo with the recap, strategies, and highlights..
+I wanted to use AI to surface things in the session I might have missed or
+events I call out in my own notes. So I decided to build a pipeline that
+accepted a recording, transcribed it, and generated a PR against my D&D GitHub
+repo with the recap, strategies, and highlights.
 
 So I wired it all up: drop the `.wav` files from the H1 onto a server, wait
 a few hours, get a pull request on the campaign site with a session recap, a
@@ -39,8 +41,8 @@ strategy guide, a set of highlight pages with embedded audio clips, and a
 90-second highlight reel. No manual steps for the happy path.
 
 It's been a fun experiment, but what made it possible to ship in a weekend, and what has
-kept it running reliably across GPU OOMs, model-download timeouts, and at least
-one many many bug fixes, is that the whole thing is a single Temporal
+kept it running reliably across worker OOMs, model-download timeouts, and more
+bug fixes than I'd like to admit, is that the whole thing is a single Temporal
 workflow.
 
 Below I'll walk through six Temporal primitives that did the heavy lifting: long
@@ -59,12 +61,11 @@ TypeScript and Python.
 
 ## One box in my closet
 
-I currently have the whole pipeline running on a single Dell tower tucked in a closet:
-
-a mid-range CPU, 32 GiB RAM, no GPU, one SSD, running a k3s single-node cluster.
-The recap and highlight activities shell out to the Claude Code CLI against my
-existing Claude subscription, so there's no metered cloud bill tied to pipeline
-runs.
+I currently have the whole pipeline running on a single Dell tower tucked in a
+closet: a mid-range CPU, 32 GiB RAM, no GPU, one SSD, running a k3s single-node
+cluster. The recap and highlight activities shell out to the Claude Code CLI
+against my existing Claude subscription, so there's no metered cloud bill tied
+to pipeline runs.
 
 That hardware constraint is the interesting part of the design, not a footnote
 to it. Nearly every choice in the pipeline falls out of "one small box, let's
@@ -75,7 +76,7 @@ see how much it can do":
 - **Long timeouts as a first-class design choice.** `StartToCloseTimeout: 6 * time.Hour` isn't a safety margin: it's the budget. I'd rather wait four hours and succeed than try to go fast and fail.
 - **Heartbeats over throughput.** Because activities run long, progress visibility matters more than raw speed. Heartbeats are cheap; a silent 90-minute activity is not.
 
-I've run in roughly every conceivable environment over the last 20 years. What
+I've run side projects on a lot of different setups over the years. What
 Temporal adds that those setups didn't is that recovery from the inevitable
 failures is free. A stuck activity, a pod OOM, a late-night power flicker: the
 workflow picks up where it left off and I didn't have to write that glue logic.
@@ -98,7 +99,7 @@ Here's the shape of the workflow, start to finish:
 10. **Generate highlight content pages** in the repo.
 11. **Commit, push, open a PR.**
 
-From the operator's perspective, steps 1 through 11 look like a single command:
+From the operator's perspective, all of that looks like a single command:
 
 ```bash
 ./dio process /data/recordings/session.wav --date 2026-04-17
@@ -135,7 +136,7 @@ for scanner.Scan() {
 }
 ```
 
-The heartbeat payload gets surfaced in the Temporal UI, so while a chunk is transcribing you can see `{"percent": 38, "segments": 412}` updating in real time. For a pipeline that runs for hours, that visibility is worth the ten lines of code it took to plumb it through.
+The heartbeat payload gets surfaced in the Temporal UI, so while a chunk is transcribing you can see `{"percent": 38, "segments": 412}` updating in real time. For a pipeline that runs for hours, that visibility is worth the handful of lines it took to plumb it through.
 
 ## Retries that actually help
 
@@ -173,7 +174,7 @@ if proposeResult.Confidence < AutoAcceptThreshold {
 }
 ```
 
-The mental model: a workflow waiting on a signal isn't code running somewhere. It's a durable checkpoint in the Temporal cluster. `signalChan.Receive` blocks the workflow (not a goroutine, the *workflow*) until a signal arrives. In the meantime the worker pod can be restarted, the cluster can be upgraded, the laptop that started the workflow can be closed. When the operator finally responds (hours or days later), a CLI command (or any external sender; in the author's personal setup, a Slack bot) sends the signal and the workflow picks up exactly where it left off.
+The mental model: a workflow waiting on a signal isn't code running somewhere. It's a durable checkpoint in the Temporal cluster. `signalChan.Receive` blocks the workflow (not a goroutine, the *workflow*) until a signal arrives. In the meantime the worker pod can be restarted, the cluster can be upgraded, the laptop that started the workflow can be closed. When the operator finally responds (hours or days later), a CLI command (or any external sender — in my case, a Slack bot) sends the signal and the workflow picks up exactly where it left off.
 
 The CLI has a command for the same thing:
 
@@ -285,13 +286,13 @@ Durable workflows aren't free. There's a learning curve, and small tasks don't n
 - **Needs a human in the loop somewhere.** If any step might ask a person to confirm, correct, or fill in a blank, signals turn "write a queue system" into three lines of code.
 - **Idempotent at the step level but not at the whole-job level.** You want to retry a single activity without replaying successful earlier ones. Workflow history does that for free.
 
-If your problem hits three of those four, the effort to learn Temporal pays back inside your first production outage.
+If your problem hits any two of those four, the effort to learn Temporal pays back inside your first production outage.
 
 ## What's next
 
 A few directions that would push this further:
 
-- **Child workflows per chunk** for parallel transcription, if I ever drop a GPU into the tower. Sequential is fine on CPU-only hardware today (see "One box, zero cloud bill") but the workflow shape is ready for it.
+- **Child workflows per chunk** for parallel transcription, if I ever drop a GPU into the tower. Sequential is fine on CPU-only hardware today (see "One box in my closet") but the workflow shape is ready for it.
 - **A schedule** that auto-processes any new recording that lands in the drop directory, using Temporal schedules.
 - **Versioning** the workflow itself with `workflow.GetVersion` so I can change the pipeline shape without breaking in-flight workflows.
 
