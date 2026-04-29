@@ -76,7 +76,7 @@ see how much it can do":
 - **Long timeouts as a first-class design choice.** `StartToCloseTimeout: 6 * time.Hour` isn't a safety margin: it's the budget. I'd rather wait four hours and succeed than try to go fast and fail.
 - **Heartbeats over throughput.** Because activities run long, progress visibility matters more than raw speed. Heartbeats are cheap; a silent 90-minute activity is not.
 
-I've run side projects on a lot of different setups over the years. What
+I've run projects on a lot of different setups over the years. What
 Temporal adds that those setups didn't is that recovery from the inevitable
 failures is free. A stuck activity, a pod OOM, a late-night power flicker: the
 workflow picks up where it left off and I didn't have to write that glue logic.
@@ -300,4 +300,4 @@ The full source is in this repo, [github.com/rossnelson/temporal-session-pipelin
 
 And if you have your own "I do this by hand every two weeks" chore, it's worth asking whether it's really a pipeline in disguise. Most of mine were.
 
-If you want to go deeper, the [Temporal docs](https://docs.temporal.io) cover the primitives above with more care, and the [community Slack](https://temporal.io/slack) is where I've asked every not-in-the-docs question I've had. If this pattern fits a chore of your own, I'd love to hear what you end up building.
+If you want to go deeper, the [Temporal docs](https://docs.temporal.io) cover the primitives above with more care, and the [community Slack](https://temporal.io/slack) is where you can ask every not-in-the-docs question you've ever had. If this pattern fits a chore of your own, I'd love to hear what you end up building.
