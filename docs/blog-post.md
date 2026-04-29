@@ -1,5 +1,5 @@
 ---
-title: "From 5 hours of D&D audio to a pull request: a durable pipeline with Temporal and Claude"
+title: "From 3.5 hours of D&D audio to a pull request: a durable pipeline with Temporal and Claude"
 description: "A weekend side-project turned into a practical tour of durable execution, signals, heartbeats, and parallel activities, using Temporal to turn raw session recordings into recaps, highlight reels, and PRs."
 tags: [How-To, Temporal Concepts, AI]
 ---
@@ -25,15 +25,16 @@ look back at past sessions purely for nostalgic purposes.
 
 I picked up a [Zoom H1 Essential](https://zoomcorp.com/en/us/handheld-recorders/handheld-recorders/h1essential/)
 and left it running on the table for the whole session. Now I
-had 3-5 hours of raw audio: overlapping voices, combat,
+had 3.5 hours of raw audio: overlapping voices, combat,
 tangents about snacks, a very vocal toddler. But it was never my intention to
 listen to the audio in its raw format. My dream was to create a tool that
 would transcribe the audio and massage it into a consumable format.
 
-I wanted to use AI to surface things in the session I might have missed or
+I wanted to use LLMs to surface things in the session I might have missed or
 events I call out in my own notes. So I decided to build a pipeline that
 accepted a recording, transcribed it, and generated a PR against my D&D GitHub
-repo with the recap, strategies, and highlights.
+repo with the recap, strategies, and highlights. Once merged, CI would deploy
+the updated content to GitHub Pages.
 
 So I wired it all up: drop the `.wav` files from the H1 onto a server, wait
 a few hours, get a pull request on the campaign site with a session recap, a
@@ -109,7 +110,7 @@ Under the hood that's one call to `client.ExecuteWorkflow`. Let's look at the pa
 
 ## Long-running activities earn heartbeats
 
-Transcription with Whisper on a session this long is not fast. Each 20-minute chunk takes 8–15 minutes of wall clock on a CPU-only worker. A full session is 15 chunks, so the transcription phase alone can run for over two hours.
+Transcription with Whisper on a session this long is not fast. Each 20-minute chunk takes 8–15 minutes of wall clock on a CPU-only worker. A full session is around 10 chunks, so the transcription phase alone can run for over an hour and a half.
 
 Two things have to be configured correctly or Temporal will start making bad assumptions about liveness:
 
@@ -282,7 +283,7 @@ I spent zero time writing the code that handles any of those. It's all inherent 
 Durable workflows aren't free. There's a learning curve, and small tasks don't need the machinery. The shape of problem that's worth wrapping in Temporal looks like:
 
 - **Multi-step, with heterogeneous step types.** If the "pipeline" is one HTTP call, you don't need this. If it's a child-process invocation, then an LLM call, then a git push, with retry semantics that differ per step, yes.
-- **Long-running on unreliable infrastructure.** Cheap hardware, preemptible VMs, laptops. Anything where "the worker might go away mid-run" is a realistic failure mode.
+- **Long-running on unreliable infrastructure.** All environments fail. Anything where "the worker might go away mid-run" is a realistic failure mode.
 - **Needs a human in the loop somewhere.** If any step might ask a person to confirm, correct, or fill in a blank, signals turn "write a queue system" into three lines of code.
 - **Idempotent at the step level but not at the whole-job level.** You want to retry a single activity without replaying successful earlier ones. Workflow history does that for free.
 
